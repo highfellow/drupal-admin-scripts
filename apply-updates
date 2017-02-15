@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# Apply new updates.
+#
+# This script applies new minor version updates to drupal core and the
+# installed modules. It always applies security updates, except those that
+# are marked as known. It also applies any other updates if it's running on a
+# Tuesday morning.
+#
+
+export PATH=$HOME/bin:/usr/kerberos/bin:/usr/local/bin:/bin:/usr/bin DRUSH_PHP=/usr/local/bin/php53
+
+knownUpdates='(authcache|feeds)' # list of Drupal project names, in brackets, separated by | characters.
+mailTo="highfellow@gmail.com"
+newUpdates=`drush -r ~/www/code ups 2>/dev/null | grep 'SECURITY UPDATE' | egrep -v "\($knownUpdates\)" | wc -l`
+weekDay=`date +%a`
+echo $weekDay
+echo $newUpdates
+
+if [ "$weekDay" == "Tue" ] || [ $newUpdates -gt 0 ] ; then
+  vl-build 2>&1 | mail -s 'virtual lancaster updates' $mailTo
+fi
+

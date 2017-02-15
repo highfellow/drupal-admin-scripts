@@ -1,0 +1,11 @@
+#!/bin/bash
+
+memtot=0
+for user in highfellow highfapache virtlanc vlapache vlsql vlsandbox; do
+  usermem=`ps -u $user -o pid,rss,command | awk '{sum+=$2} END {print sum}'`
+  memtot=$(( $memtot + $usermem))
+  echo "$user $(( $usermem / 1024 ))"
+done
+echo
+echo "TOTAL: $(( $memtot / 1024 ))"
+

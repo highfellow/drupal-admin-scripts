@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# script to be run on cron runs.
+#
+
+#
+# Configuration variables - edit to suit your configuration.
+#
+
+# use correct php ver for drush (syntax will depend on your hosting.)
+export DRUSH_PHP=`which php53`
+export DRUPALDIR=$HOME/www/code
+export TMPDIR=$HOME/tmp # temporary directory
+export CONFDIR=$HOME/etc
+export FILESDIR=$HOME/tmp/filecache
+export PROTO=https
+export DOMAIN=virtlanc.highfellow.org
+export AUTHUSER=warmer
+export AUTHPASSWD=33381dca2c92354045ed104a63f84ffe
+
+#
+# Script code below.
+#
+
+cd $TMPDIR
+
+echo "Starting up at:"
+date
+
+echo "Retrieving home page"
+# get an up-to-date copy of the home page links.
+rm -f "$FILESDIR/cache_page-$PROTO ^^$DOMAIN^"
+curl --insecure $PROTO://$DOMAIN 2>/dev/null | perl -ne 'if (/<a.*?href="(.*?)".*?>/) { print "$1\n"; }' | sort | uniq | grep -v '^#' > home-links.txt
+
+# merge with the fixed hub pages and remove excluded pages.
+cat $CONFDIR/hub-pages.txt home-links.txt | grep -vf $CONFDIR/exclude-paths.txt | sort | uniq | perl -ne 'print "'$PROTO://$DOMAIN'$_";' > crawl-pages.txt 
+
+# get an authenticated session for the cache warmer user
+echo "Authenticating"
+cookies="has_js=1;path=/"
+curl --insecure --cookie $cookies --dump-header headers.txt --data "name=$AUTHUSER&pass=$AUTHPASSWD&form_id=user_login" $PROTO://$DOMAIN/user >/dev/null 2>&1
+echo -n $cookies > cookies.txt
+cat headers.txt | while read l; do
+  if [ "${l:0:11}" == "Set-Cookie:" ] ; then
+    c=${l:12}
+    c=${c%%;*}
+    echo -n ";$c" >> cookies.txt
+  fi
+done
+
+# crawl the pages, deleting each in turn then immediately pulling it again to
+# refresh the cache.
+echo "Starting cache pre-warming"
+cat crawl-pages.txt | while read url; do
+  echo $url;
+  cacheurl=${url//\//^}
+  # remove old cache file(s)
+  rm -f $FILESDIR/cache_page-*$cacheurl
+  # recrawl file as anon and logged in user
+  curl --insecure "$url" > /dev/null 2>&1
+  curl --insecure --cookie `cat cookies.txt` "$url" > /dev/null 2>&1
+done
+
+# wait for jobs to finish
+wait
+
+echo "cleaning up"
+rm crawl-pages.txt home-links.txt cookies.txt headers.txt
+
+echo "done"
+
+exit 0
+

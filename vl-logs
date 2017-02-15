@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# script to grab logs from the private apache server and put them somewhere
+# where awstats can see them, with all local requests (i.e. from the cache
+# warmer script) removed.
+
+
+# get yesterday's logs from the vlapache account
+file=/home/vlapache/logs/virtlanc_access.log.1
+if [ -f $file ]; then
+  grep -v '^85.17.88.171' $file >~/var/apache/virtlanc_access.log.1
+fi
+
+# build awstats static pages.
+$HOME/bin/awstats-tools/awstats_buildstaticpages.pl -config=virtlanc -configdir=$HOME/etc/awstats -update -awstatsprog=$HOME/bin/awstats-bin/awstats.pl -dir=$HOME/www/awstats
+
+# set permissions on awstats directory
+chmod -R g=rx,o= $HOME/www/awstats 

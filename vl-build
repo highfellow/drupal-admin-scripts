@@ -1,0 +1,102 @@
+#!/bin/bash
+
+BUILD_DIR=$HOME/build
+CUSTOM_DIR=$HOME/etc/custom
+SITE_DIR=$HOME/www/code
+FILES_DIR=$HOME/www/files
+TMP_DIR=$HOME/tmp
+
+quit () {
+  if [ "$1" == "" ] ; then
+    m="Failed"
+  else
+    m=$1
+  fi
+  echo Error: $m
+  echo Quitting.
+  exit 1
+}
+
+if [ "$1" == "-q" ] ; then
+  echo "Building in quick mode"
+  QUICK=1
+else
+  QUICK=0
+fi
+
+[ -f $CUSTOM_DIR/stop-updates ] && { echo "Updates suspended - exiting." ; exit 1 ; }
+
+mkdir -p $BUILD_DIR
+cd $BUILD_DIR
+find $BUILD_DIR -depth -mindepth 1 -exec rm -r {} \;
+
+# set umask
+umask 027
+
+# build the core and modules
+if [ $QUICK != 1 ] ; then
+drush make $CUSTOM_DIR/virtlanc.make.versions . || quit "Failed to build site from schema."
+fi
+
+# copy in custom bits.
+echo "Copying in custom modules etc."
+mkdir -p $BUILD_DIR/sites/all/modules
+mkdir -p $BUILD_DIR/sites/all/themes
+mkdir -p $BUILD_DIR/sites/default
+cp -r $CUSTOM_DIR/altered_modules $CUSTOM_DIR/custom_modules $BUILD_DIR/sites/all/modules || quit
+cp -r $CUSTOM_DIR/themes/* $BUILD_DIR/sites/all/themes || quit
+if [ $QUICK != 1 ] ; then
+  cat $BUILD_DIR/sites/default/default.settings.php $CUSTOM_DIR/settings.php > $BUILD_DIR/sites/default/settings.php || quit
+  cat $CUSTOM_DIR/.htaccess $BUILD_DIR/.htaccess > $BUILD_DIR/.htaccess2 || quit
+  cat $BUILD_DIR/.htaccess2 > $BUILD_DIR/.htaccess || quit
+  rm -f $BUILD_DIR/.htaccess2 || quit
+fi
+cp -r $CUSTOM_DIR/extra-files/* $BUILD_DIR || quit
+# run post build script.
+if [ -x $CUSTOM_DIR/postbuild.sh ]; then
+  echo "Running post build script"
+  . $CUSTOM_DIR/postbuild.sh
+fi
+
+# set permissions.
+echo "Setting permissions."
+find $BUILD_DIR -mindepth 1 -type f -exec chmod u=rw,g=r,o= {} \;
+find $BUILD_DIR -mindepth 1 -type d -exec chmod u=rwx,g=rx,o= {} \;
+#find $BUILD_DIR -mindepth 1 -exec setfacl -m u:highfapache:rx,u:virtlanc:rwx {} \;
+
+if [ $QUICK != 1 ] ; then
+  # put site in maintenance mode.
+  echo "Entering maintenance mode."
+  drush -r $SITE_DIR vset maintenance_mode 1 || quit
+
+  # delete current install.
+  echo "Deleting current install."
+  [ -d "$SITE_DIR" ] || quit
+  rm $SITE_DIR/sites/default/files || quit 
+  find $SITE_DIR -depth -mindepth 1 -exec rm -r {} \; || quit
+fi
+
+# copy built install across.
+echo "Copying over new install."
+if [ $QUICK != 1 ] ; then
+  cp -ap $BUILD_DIR/* $BUILD_DIR/.ht* $SITE_DIR || quit
+else
+  cp -ap $BUILD_DIR/* $SITE_DIR || quit
+fi
+
+if [ $QUICK != 1 ] ; then
+  ln -s $FILES_DIR $SITE_DIR/sites/default/files || quit
+
+  # do database updates
+  echo "Applying database updates."
+  drush -r $SITE_DIR -y updatedb || quit
+
+  # leave maintenance mode.
+  echo "Leaveing maintenance mode."
+  drush -r $SITE_DIR vset maintenance_mode 0 || quit
+fi
+
+echo "Tidying up."
+find $BUILD_DIR -depth -mindepth 1 -exec rm -r {} \; || quit
+
+echo "Done."
