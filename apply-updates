@@ -18,6 +18,6 @@ echo $weekDay
 echo $newUpdates
 
 if [ "$weekDay" == "Tue" ] || [ $newUpdates -gt 0 ] ; then
-  vl-build 2>&1 | mail -s 'virtual lancaster updates' $mailTo
+  drupal-build 2>&1 | mail -s 'virtual lancaster updates' $mailTo
 fi
 

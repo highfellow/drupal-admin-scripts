@@ -1,10 +1,13 @@
 #!/bin/bash
+#
+# Script to build a drupal installation from a schema, plus various custom
+# files.
 
-BUILD_DIR=$HOME/build
-CUSTOM_DIR=$HOME/etc/custom
-SITE_DIR=$HOME/www/code
-FILES_DIR=$HOME/www/files
-TMP_DIR=$HOME/tmp
+BUILD_DIR=$HOME/build # directory to do the build in
+CUSTOM_DIR=$HOME/etc/custom # location of the schema file and custom files
+SITE_DIR=$HOME/www/code # directory to install the completed build to
+FILES_DIR=$HOME/www/files # directory where the uploaded files are kept.
+TMP_DIR=$HOME/tmp # a temporary directory
 
 quit () {
   if [ "$1" == "" ] ; then

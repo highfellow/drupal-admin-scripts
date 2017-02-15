@@ -1,7 +1,12 @@
 #!/bin/bash
 #
-# script to be run on cron runs.
+# Cache warmer script for a drupal website using authcache and filecache.
 #
+# This script is designed to keep a collection of pages permanently in the
+# drupal cache, both for anonymous users and for authenticated users with no
+# additional roles.
+# The list of pages is based on the pages linked from the site's front page,
+# with additional pages to add or exclude specfied in two files.
 
 #
 # Configuration variables - edit to suit your configuration.

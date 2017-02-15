@@ -2,7 +2,7 @@
 
 # script to grab logs from the private apache server and put them somewhere
 # where awstats can see them, with all local requests (i.e. from the cache
-# warmer script) removed.
+# warmer script) removed, and then generate the statsitics pages.
 
 
 # get yesterday's logs from the vlapache account
